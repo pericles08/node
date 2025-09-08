@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Videojuegos · Búsqueda</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    form { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: .75rem; align-items: end; }
+    label { font-size: .9rem; color: #333; }
+    input, select, button { padding: .5rem; font-size: 1rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ddd; padding: .5rem .75rem; text-align: left; }
+    th { background: #f6f6f6; }
+    .small { font-size: .9rem; color: #666; margin-top: .5rem; }
+  </style>
+</head>
+<body>
+  <h1>Catálogo de Videojuegos</h1>
+
+  <form id="buscador">
+    <div>
+      <label for="q">Título (contiene)</label>
+      <input id="q" name="q" type="text" placeholder="ej. ring" />
+    </div>
+    <div>
+      <label for="minPrecio">Precio mínimo</label>
+      <input id="minPrecio" name="minPrecio" type="number" min="0" step="1" />
+    </div>
+    <div>
+      <label for="maxPrecio">Precio máximo</label>
+      <input id="maxPrecio" name="maxPrecio" type="number" min="0" step="1" />
+    </div>
+    <div>
+      <label for="sort">Ordenar por</label>
+      <select id="sort" name="sort">
+        <option value="">-- ninguno --</option>
+        <option value="titulo">Título</option>
+        <option value="precio">Precio</option>
+      </select>
+    </div>
+    <div>
+      <label for="order">Orden</label>
+      <select id="order" name="order">
+        <option value="asc">Ascendente</option>
+        <option value="desc">Descendente</option>
+      </select>
+    </div>
+    <div>
+      <button type="submit">Buscar</button>
+    </div>
+  </form>
+
+  <div class="small" id="resumen"></div>
+
+  <table id="tabla">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Título</th>
+        <th>Precio</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const form = document.getElementById("buscador");
+    const tbody = document.querySelector("#tabla tbody");
+    const resumen = document.getElementById("resumen");
+
+    async function consultar(params = {}) {
+      const usp = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== "" && v !== undefined && v !== null) usp.set(k, v);
+      });
+      const url = "/videojuegos" + (usp.toString() ? `?${usp.toString()}` : "");
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Error HTTP " + res.status);
+      return res.json();
+    }
+
+    function render({ total, offset, limit, items }) {
+      tbody.innerHTML = "";
+      items.forEach(it => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${it.id}</td>
+          <td>${it.titulo}</td>
+          <td>$ ${it.precio}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      resumen.textContent = `Mostrando ${items.length} de ${total} resultados (offset: ${offset}, límite: ${limit}).`;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const q = document.getElementById("q").value.trim();
+      const minPrecio = document.getElementById("minPrecio").value;
+      const maxPrecio = document.getElementById("maxPrecio").value;
+      const sort = document.getElementById("sort").value;
+      const order = document.getElementById("order").value;
+
+      try {
+        const data = await consultar({ q, minPrecio, maxPrecio, sort, order });
+        render(data);
+      } catch (err) {
+        alert("No se pudo consultar: " + err.message);
+      }
+    });
+
+    // Cargar todo al inicio
+    (async () => {
+      const data = await consultar();
+      render(data);
+    })();
+  </script>
+</body>
+</html>
